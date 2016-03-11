@@ -1,0 +1,144 @@
+/**
+*  @file reception.c
+*  @brief The Chef Process
+*
+*
+*  @author Deep K. Shroti
+*  @bug No know bugs.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+
+#define SERVICE_ROOM_KEY 7004
+#define GUEST_COUNT_KEY 7005
+
+
+typedef struct my_guest_table{
+  char name[20];
+  int roomNo;
+  char inTime[26];
+  char outTime[26];
+}guest_table;
+
+int serviceid;
+guest_table *my_guest_list;//[10];
+FILE *guest_list_fp;
+
+
+
+int guest_count_shmid;
+int *guest_count;
+
+/** @brief  The list reader function
+*
+*
+*
+*  @param void
+*  @return void
+*
+*/
+void listReader()
+{
+  int line_count = 0;
+  char buff[20] = "";
+  // printf("Reading File\n");
+  guest_list_fp = fopen("guest.txt","r");                         //Opening the file
+  if(guest_list_fp == NULL)                                    //Checking if the file exist
+    printf("Error! Guest list not found \n");
+
+    while(fgets(buff,20,guest_list_fp) != NULL){
+      strcpy(my_guest_list[ line_count ].name , buff);
+      line_count++;
+    }
+    fclose(guest_list_fp);
+}
+
+void print_guestlist()
+{
+  int i;
+  for (i = 0; i < 10; i++){
+    printf("Reception Guest: %s\n", my_guest_list[i].name);
+  }
+}
+
+void main(){
+  //char guest_list[100][20];
+  pid_t mypid, parpid, child_pid;
+  mypid = getpid();
+  parpid = getppid();
+  int pid_status;
+
+  printf("Child Reception: PID = %u, PPID = %u\n", mypid, parpid);
+
+  serviceid = shmget((key_t)SERVICE_ROOM_KEY, 10*sizeof(my_guest_list), 0644|IPC_CREAT);
+  my_guest_list = (guest_table *)shmat(serviceid, 0, 0);
+
+  guest_count_shmid = shmget((key_t)GUEST_COUNT_KEY, 1*sizeof(int), 0644|IPC_CREAT);
+  guest_count = (int *)shmat(guest_count_shmid,0,0);
+  guest_count[0] = 0;
+  listReader();
+
+  int service_room_count, service_room_termination_count;
+
+  char shell_dir[256];
+  char exe_loc[256];
+
+  // getting the current working directory
+
+  FILE *guest_book_fp;
+  guest_book_fp = fopen("Guestbook.txt","w");
+  if( guest_book_fp == NULL){
+    printf("Error! File not Created\n");
+  }else{
+    fprintf(guest_book_fp,"Guest_Name\tRoom_Entry_Time\tRoom_Exit_Time\tComment\tRoom_ID\n");
+    fclose(guest_book_fp);
+  }
+  getcwd(shell_dir,sizeof(shell_dir));
+  for (service_room_count = 1; service_room_count<=3 ; service_room_count++){
+    child_pid = fork();
+    if(child_pid == 0 ){
+      mypid = getpid();
+      parpid = getppid();
+      // printf("Child %d: PID = %u, PPID = %u\n",service_room_count, mypid, parpid);
+
+
+    switch (service_room_count){
+      case 1:
+      sprintf(exe_loc, "%s/service_room_1.out", shell_dir);
+      if(execlp(exe_loc,exe_loc,NULL)==-1)
+      perror("execlp");
+      exit(0);
+      break;
+      case 2:
+      sprintf(exe_loc, "%s/service_room_2.out", shell_dir);
+      if(execlp(exe_loc,exe_loc,NULL)==-1)
+      perror("execlp");
+      exit(0);
+      break;
+      case 3:
+      sprintf(exe_loc, "%s/service_room_3.out", shell_dir);
+      if(execlp(exe_loc,exe_loc,NULL)==-1)
+      perror("execlp");
+      exit(0);
+      break;
+    }
+  }
+
+}
+
+
+
+printf("\nReception terminates...\n");
+
+
+  // print_guestlist();
+
+  shmdt(my_guest_list);
+  shmdt(guest_count);
+}

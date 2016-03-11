@@ -1,0 +1,157 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+/*oid runCommand(char *command, char *arg_list[256],int num_args)
+{
+	switch(num_args)
+	{
+
+		
+case 1:
+	execlp(command, command, NULL);
+	break;
+
+
+case 2:
+	execlp(command, command, arg_list[1], NULL);
+	break;
+
+
+case 3:
+	execlp(command, command, arg_list[1], arg_list[2],  NULL);
+	break;
+
+case 4:
+	execlp(command, command, arg_list[1], arg_list[2], arg_list[3], NULL);
+	break;
+
+	}
+}
+*/
+
+
+void main(int argc , char *argv[]){
+
+	ssize_t cmd_len = 1;; 
+	size_t buff_len = 6;
+	char *cmd;
+	cmd = (char*)malloc(buff_len+1);
+	int pid,i=0;
+
+
+	int count;
+	
+
+	char *tok;
+	int counter;
+	char arg_value[10][256];
+	char argument[10][256] ;	
+	
+	for(count = 0 ; count<10 ; count++){
+		sprintf(argument[count],"%s","\0");
+	}
+	
+
+	printf("@myshell \n");
+
+	
+	while(1){
+
+		cmd_len = getline(&cmd, &buff_len, stdin);
+		//puts(cmd);
+
+		char *ptr = cmd;
+		counter = 0;
+	while((tok = strtok(ptr," ")) != '\0'){
+
+		//printf("%s \n",tok);
+		strcpy(arg_value[counter], tok);
+		ptr = NULL;
+		counter++;
+	}
+
+	strtok(arg_value[counter-1],"\n");
+			
+	for(i=0;i<counter;i++){
+		sprintf(argument[i],"%s",arg_value[i]);
+		//printf("<<agr[%d]>>>%s//\n",i, argument[i]);
+	}
+
+	
+
+		if(cmd_len == -1)
+			puts("ERROR");
+
+		//printf("cmd: %s,cmd_len: %zu",cmd,strlen(cmd));
+
+		if(strcmp(argument[0], "myexit") == 0){
+			printf("Exit Successfull!!\n");
+			exit(0);
+		}	
+		
+		if((pid=fork())==0){
+			//printf("1");
+			
+			if(strcmp(argument[0], "mypwd")== 0){
+				//puts(argument[0]);
+				execlp("./mypwd.out","./mypwd.out",NULL);
+			}
+				
+			else if(strcmp(argument[0], "mymkdir")== 0){
+					//printf("mymkdir");
+					//runCommand("./mymkdir.out",&argument, counter-1);
+					execlp("./mymkdir.out","./mymkdir.out",argument[1],argument[2],argument[3],argument[4],NULL);   
+				
+				
+			}
+			else if(strcmp(argument[0], "mycd")== 0){
+				
+				//printf("mycd: %s:", argument[1]);
+				int status;
+				char *path;
+				//printf("Path: <<%s>>",argv[1]);
+				
+				status = chdir(argv[1]);
+				if (status != 0){
+					printf("Failed to change the directory!\n");
+				}else{
+					printf("Change directory successfull!\n");
+				}
+	
+				//execlp("./mycd.out","./mycd.out",argument[1],NULL);
+			}
+				
+			else if(strcmp(argument[0], "myrm")== 0){
+				//printf("myrm");
+				execlp("./myrm.out","./myrm.out",argument[1],argument[2],argument[3],argument[4],NULL);
+			}
+				
+			else if(strcmp(argument[0], "myps")== 0){
+
+			}
+				
+			else if(strcmp(argument[0], "myls")== 0){
+					//printf("myls");
+					execlp("./myls.out","./myls.out",NULL);
+				
+			}
+				
+			
+			else if(strcmp(argument[0], "mytail")== 0){
+				//printf("mytail");
+				execlp("./mytail.out","./mytail.out",argument[1],argument[2],NULL);
+				
+			}else{
+				printf("Command Not Found!!\n");
+			}
+		}
+							
+	}
+
+}
+
+
+
+

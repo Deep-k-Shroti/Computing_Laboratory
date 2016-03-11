@@ -1,0 +1,21 @@
+#include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[]){
+	
+	int status;
+	char *path;
+	printf("Path: <<%s>>",argv[1]);
+	
+	status = chdir(argv[1]);
+	if (status != 0){
+		printf("Failed to change the directory!");
+	}else{
+		printf("Change directory successfull!\n");
+	}
+	return 0;
+}
+
+	
+	

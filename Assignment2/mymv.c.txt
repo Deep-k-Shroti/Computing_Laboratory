@@ -1,0 +1,77 @@
+#include <stdio.h>
+#include <fcntl.h> 
+#include <stdlib.h>
+#include <string.h>
+
+int main(){
+
+	//
+    ssize_t cmd_len = 1;; 
+    size_t buff_len = 6;
+    char *cmd;
+    cmd = (char*)malloc(buff_len+1);
+    cmd_len = getline(&cmd, &buff_len, stdin);
+    //
+
+    int count;
+    char arg_value[10][256];
+    char argument[10][256];
+    char file_name_1[256] = "";
+    char file_name_2[256] = "";
+    int counter = 0;
+    char *tok;
+    char *ptr = cmd;
+  
+    
+    int file_1_desc,file_2_desc,read_count;
+ 	char buff[512]; 
+
+    while((tok = strtok(ptr," ")) != '\0'){
+        //printf("%s \n",tok);
+        strcpy(arg_value[counter], tok);
+        ptr = NULL;
+        counter++;
+    }
+    for(count=0;count<10;count++){
+        sprintf(argument[count],"%s",arg_value[count]);
+        //printf("<<agr>>>%s\n", argument[count]);
+    }
+    //printf("%d", counter);
+ 	
+    
+    sprintf(file_name_1,"%s",argument[1]);
+    sprintf(file_name_2,"%s",argument[2]); 
+    strtok(file_name_2, "\n");
+    printf("%s \n", file_name_1);
+    printf("%s \n", file_name_2);
+
+
+	
+	if(counter != 3){
+		printf("Enter the file name in correct format \n"); 
+		exit(1);
+	}
+	else{
+		
+		file_1_desc=open(file_name_1,O_RDONLY); 
+		if(file_1_desc==-1){
+			printf("The Source file does not exist\n"); 
+			exit(1);
+		}
+
+		file_2_desc=open(file_name_2,O_WRONLY); 
+		if(file_2_desc==-1) 
+			file_2_desc=creat(file_name_2,0666); 
+		while((read_count=read(file_1_desc,buff,512))>0){
+			write(file_2_desc,buff,read_count);
+		}
+		close(file_2_desc);
+		close(file_1_desc);
+	}
+
+	int c=unlink(file_name_1); 
+	/*if(c==0)
+		printf("unlinked successfully\n");
+	else
+		printf("link error\n");*/
+}

@@ -1,0 +1,126 @@
+/**
+@file myrm.c
+*/
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdlib.h>
+
+/** @brief ​ To delete the file 
+ *	
+ *  @param  Name of the file or folder that needs to be deleted
+ *  @param  Mode of the folder to delete
+ *  @return Deletes the file or folder
+ * 
+ */
+
+void delete_file(char *, int );
+struct dirent *read_dir, *read_del_dir ; 
+struct stat buf;
+
+
+
+/** @brief ​ The main function which takes the argument and argument number
+ *
+ *  @param  file or folder to delete
+ *  @return Deletes the file
+ *  
+ */
+
+int main(int argc, char *argv[]){
+	printf("[myrm_pid]=%ld\n", (long)getpid());
+	char *tok;
+	int counter = 0, file_name_count=0;
+	char arg_value[10][256];
+	char argument[10][256];
+	int mode;
+	char del_file[256];
+	int i;	
+
+	for(i=1;i< 5 ;i++){
+		sprintf(argument[i],"%s",argv[i]);
+	}
+	
+	if (strcmp(argument[1] ,"-d") == 0){
+		mode ='d';	
+	}
+
+	else if (strcmp(argument[1],"-r") == 0){
+		mode ='r';		
+	}
+
+	else{
+		strcpy(del_file , argument[1]);
+		delete_file(del_file, 0);
+	}
+
+	for(file_name_count = 0; file_name_count< 3; file_name_count++ ){
+		strcpy(del_file , argument[2+file_name_count]);
+		delete_file(del_file, mode);
+	}
+}
+
+void delete_file( char *del_file, int mode){
+	char cwd[256];
+	DIR *dir = NULL, *del_dir = NULL ;
+	int file_found = 0;
+	int file_count = 0;
+
+	getcwd(cwd , sizeof(cwd));
+	dir = opendir(cwd);
+
+	//del_file
+	while((read_dir = readdir(dir)) != NULL){
+		if(strcmp (read_dir->d_name, ".") !=0 && strcmp(read_dir->d_name,"..") != 0 && strcmp(read_dir->d_name, del_file)){
+			file_found =1;
+			char check_file[1000];
+			strcpy(check_file,cwd); 
+     		strcat(check_file,"/");
+     		strcat(check_file,read_dir->d_name); 
+
+			if(stat(check_file,&buf)==-1) // puts file info in buf
+		        perror("stat");
+		    if(S_ISDIR(buf.st_mode)){// if directory, then
+				
+				switch(mode){
+					case 'd':
+						del_dir = opendir(del_file);
+						while((read_del_dir = readdir(del_dir)) != NULL){
+							if(strcmp (read_del_dir->d_name, ".") !=0 && strcmp(read_del_dir->d_name,"..") != 0)
+								file_count++;
+								printf("%d\n", file_count);
+						}
+						if(!file_count){
+							printf("Directory %s removed", del_file);
+							remove (del_file);
+							break;
+						}else
+							printf("Can't remove!! Directory not empty");	
+							break;
+					case 'r':
+						del_dir = opendir(del_file);
+						while((read_del_dir = readdir(del_dir)) != NULL){
+							if(strcmp (read_del_dir->d_name, ".") !=0 && strcmp(read_del_dir->d_name,"..") != 0)
+								remove(read_del_dir->d_name);
+						}
+						remove(del_file);
+						printf("Directory %s removed", del_file);
+						break;	
+				}
+
+			}else{			//file
+				if(strcmp(read_dir->d_name, del_file))
+					remove(del_file);	
+			}				
+		}
+		else if (!file_found){
+			//printf("File or Directory not found :<<%s>>", read_dir->d_name);	
+			file_found = 0;		
+		}
+	}
+}
+    

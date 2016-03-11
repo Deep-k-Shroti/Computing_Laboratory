@@ -1,0 +1,30 @@
+#include <stdio.h>                                              //To use input and output funtions
+#include <math.h>                                               //To evaluate the square root
+#include <time.h>                                               //To measure the time taken to execute the program
+
+int main ()
+{                                                               //Intilisations
+    int count;
+    long int input_integer, prime_factor_first, prime_factor_second;
+    clock_t begin,end;
+    double time_spent; 
+                               
+    printf("Enter an integer ");                                 //To take an integer input
+    scanf("%ld", &input_integer);
+
+    begin = clock();                                             // Timer starts
+    for(count=2 ; count <= sqrt(input_integer) ; count++){
+        if(!(input_integer%count)){                              //To check if remainder is zero
+            prime_factor_first = count;                          //Prime factor 1
+            prime_factor_second = input_integer/count;           //Prime factor 2
+        }
+    }
+    end = clock();                                               // Timer ends
+    time_spent = (double)(end - begin)/CLOCKS_PER_SEC;
+
+    printf("Prime factors = %ld,%ld \n", prime_factor_first,prime_factor_second);
+    printf("Time = %f microsecond \n",time_spent*1000000);
+    
+    return(0);
+}
+

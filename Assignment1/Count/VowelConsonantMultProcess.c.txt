@@ -1,0 +1,98 @@
+#include <stdio.h>                                               //To use input and output funtions
+#include <stdlib.h>                                              //To use exit() function
+#include <string.h>                                              //To use string related functions like strcat(),strlen()
+#include <dirent.h>                                              //To read directory file list
+#include <time.h>                                                //To measure the time taken to execute the program
+
+
+int main (int argc , char *argv[]){                              //Taking number of arguments and file names as main() input
+                                                                
+    int pid, out_file_len;
+    long int vowels, consonants, consonant_count = 0, vowel_count = 0, total_vowels = 0, total_consonants = 0; //Initialisation
+    int process_count, count;
+    int max_read_line_size = 1000;
+    char str[5],tab;
+    char openFile[10];
+    char buff[max_read_line_size];
+    clock_t begin,end;
+    double time_spent;
+    FILE *ptr_read_file, *ptr_write_file, *ptr_result_read_file;
+    DIR *folder;
+    struct dirent *result_read_file;
+    
+
+    begin = clock();                                             //Timer Start
+    for(process_count = 1; process_count < argc; process_count++) {
+        printf("Reading File: %s \n",argv[process_count]);
+        pid = fork();                                              //To do count vowels and consonants using multiple processes, forking is used
+        if(pid < 0) {                                            //Checking if child exist
+            printf("Error! Child process does not exist");
+            exit(1);
+        } else if (pid == 0) {            
+            printf("Child (%d): %d \n", process_count, getpid());   
+            ptr_read_file = fopen(argv[process_count],"r");      //Opening the file
+            if(ptr_read_file == NULL){                           //Checking if the file exists
+                printf("Error! File not found \n");              
+                return(-1);
+            } 
+            while(fgets(buff,max_read_line_size,ptr_read_file) != NULL){ //Reading individual file line
+                //printf("%s \n", buff);
+                for(count = 0 ; buff[count] != '\0' ; count++){          //Reading characters in the line in a loop       
+                    if((buff[count] >= 65 && buff[count] <= 90) || (buff[count] >= 97 && buff[count] <= 122)){//Removing Special Characters
+                        if(buff[count] == 65 || buff[count] == 69 || buff[count] == 73 || buff[count] == 79 || buff[count] == 85 || buff[count] == 97 || buff[count] == 101 || buff[count] == 105 || buff[count] == 111 || buff[count] == 117){
+                            //printf("*vowel* %d \n", buff[count]);      //Checking for a,e,i,o,u,A,E,I,O,U with ASCII value
+                            vowel_count++;     
+                        } else{
+                            //printf("*consonant* %d \n", buff[count]);
+                            consonant_count++;
+                        } 
+                    }
+                }   
+            }
+            fclose(ptr_read_file);
+
+            sprintf(str, "%d", getpid());                                   //Adding file containing no. of vowels and consonant  
+            strcat(str,".txt");                                             //to result folder with name as <process_id>.txt
+            char dest_folder_file[19] = "./result/";
+            strcat(dest_folder_file,str);
+
+            ptr_write_file=fopen(dest_folder_file,"w");
+            if(ptr_write_file==NULL){
+                printf("Error! Cannot write on file \n");
+                return(-1);
+            }
+            
+                fprintf(ptr_write_file,"%ld\n",vowel_count);                     //writing no. of vowels and consonants to the process_id file
+                fprintf(ptr_write_file,"%ld\n",consonant_count);
+                fprintf(ptr_write_file,"%s\n",argv[process_count]);
+                fclose(ptr_write_file);
+                exit(0);
+        } else  
+            wait(NULL);
+    }
+    end = clock();                                                          //Timer Stops
+    time_spent = (double)(end - begin)/ CLOCKS_PER_SEC ;
+
+    folder = opendir("result");
+    while( (result_read_file = readdir(folder)) != NULL){                   //Reading file list in Result folder
+        sprintf(openFile,"result/%s",result_read_file->d_name);             //Converting to String
+        
+        out_file_len = strlen(openFile);   
+        if((openFile[out_file_len - 1] == 't') && (openFile[out_file_len - 2] == 'x') && (openFile[out_file_len - 3] == 't')){//Checking for .txt file
+            ptr_result_read_file = fopen(openFile,"r");  
+            fscanf(ptr_result_read_file,"%ld%c%ld", &vowels,&tab,&consonants); //Reading the number of Vowels and Consonants
+            total_vowels += vowels;
+            total_consonants += consonants;            
+        fclose(ptr_result_read_file);
+        }        
+    }
+
+    printf("Total number of vowels in the input files = %ld \n",total_vowels);
+    printf("Total number of consonants in the input files = %ld \n",total_consonants);
+    printf("Time = %f microsecond \n",time_spent*1000000);
+
+ return 0;
+}
+
+
+

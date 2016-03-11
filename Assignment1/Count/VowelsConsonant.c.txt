@@ -1,0 +1,50 @@
+#include <stdio.h>                                                   //To use input and output funtions
+#include <time.h>                                                    //To measure the time taken to execute the program
+
+
+/*
+*main funtion takes command line agruments
+*and calculate tne number of vowels and constants 
+*in the input files using a single process
+*/
+
+int main (int argc , char *argv[]){                                  //Taking number of arguments and file names as main() input
+
+    int arg_count,vowel_count = 0,consonant_count = 0,count;        //Initialisation
+    int max_line_size = 1000;
+    char buff[max_line_size];
+    clock_t begin,end;
+    double time_spent;
+    FILE *ptr_file;
+
+    begin = clock();                                                  //Timer Start
+    for(arg_count = 1 ; arg_count < argc ; arg_count++){              //Reading files in a loop
+        printf("Reading File: %s \n",argv[arg_count]);
+        ptr_file = fopen(argv[arg_count],"r");                        //Opening the file
+        if(ptr_file == NULL){                                         //Checking if the file exist
+            printf("Error! File not found \n");
+            return(-1);
+        }
+        while(fgets(buff,max_line_size,ptr_file) != NULL){            //Reading individual file line
+            for(count=0 ; buff[count] != '\0' ; count++){             //Reading characters in the line in a loop 
+                if((buff[count] >= 65 && buff[count] <= 90) || (buff[count] >= 97 && buff[count] <= 122) ){ //Removing Special Characters
+                    if(buff[count] == 65 || buff[count] == 69 || buff[count] == 73 || buff[count] == 79 || buff[count] == 85 || buff[count] == 97 || buff[count] == 101 || buff[count] == 105 || buff[count] == 111 || buff[count] == 117){
+                        //printf("*vowel* %d \n", buff[count]);          //Checking for a,e,i,o,u,A,E,I,O,U with ASCII value
+                        vowel_count++; 
+                    }else{
+                        //printf("*consonant* %d \n", buff[count]);
+                        consonant_count++;
+                    } 
+                }
+            }                 
+        }
+        fclose(ptr_file);
+    }
+    end = clock();                                                      //Timer End
+
+    time_spent = (double)(end - begin)/ CLOCKS_PER_SEC ;
+    printf("Total number of vowels in the input files = %d \n",vowel_count);
+    printf("Total number of consonants in the input files = %d \n",consonant_count);
+    printf("Time = %f microsecond \n",time_spent*1000000);
+ return 0;
+}

@@ -1,0 +1,655 @@
+/** @file SkipList.c
+*  @brief The Skiplist
+*
+*  Skip   Lists   are   an   alternative   representation   of   balanced   trees   that   provides
+* approximate   O(log   n)   access   times   with   the   advantage   that   the   implementation   is
+* straightforward   and   the   storage   requirement   is   less   than   a   standard   balanced   tree
+* structure.   A   distinct   difference   from   most   search   structures   is   that   the   behaviour   of
+* skip lists is probabilistic without dependence on the order of insertion of elements.
+*
+*  @author Deep K. Shroti
+*  @bug No know bugs.
+*/
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <math.h>
+
+#define SKIPLIST_MAX_LEVEL 16
+
+char sample_file_1[50][50];
+char sample_file_2[50][50];
+char sample_file_3[50][50];
+
+
+typedef struct node {
+    int key;
+    char value[50];
+    int height;
+    struct node **forward;
+} node;
+
+typedef struct skiplist {
+    int level;
+    struct node *header;
+} skiplist;
+
+skiplist list;
+int search_count;
+int search_count_forward;
+int search_count_down;
+
+void part_1(void);
+void part_2(void);
+skiplist *initiate(skiplist *list);
+int inserth(skiplist *list, int key, char *value, int height);
+int insertp(skiplist *list, int key, char *value, float probability);
+int rand_level(float probability);
+node *find(skiplist *list, int key);
+static void freeNode(node *x);
+int delete(skiplist *list, int key);
+void print(skiplist *list);
+void skiplistFree(skiplist *list);
+void display(skiplist *list);
+
+
+/** @brief part_1() Executes Part_1 of the assignment 5
+*
+*  This function helps to read Sample file1 <key,value,height>
+*  and it passes value read from sample file 1 to inserth() to insert them into the skiplist
+*   The input is taken through a file and will be as follows:­
+*   The   first   line   of   the   input   file   will   be   a   number   ​N   ​
+*   indicating   how   many
+*   entries are there in the file.
+*   Subsequent ​N ​lines will be in the form of “​key,value,height ​”
+*
+*  @param void
+*  @return void
+*
+*/
+void part_1(){
+    FILE *sample_file_1_fp;
+    char buff[50], value[50];
+    char *tok;
+    int number_of_lines;
+    int line_count = 0;
+    int count;
+    int key, height;
+
+    sample_file_1_fp = fopen("Sample input1", "r");
+
+    if(sample_file_1_fp == NULL)
+    printf("Error! File not found \n");
+
+    if(fgets(buff, 50 ,sample_file_1_fp) == NULL){
+        printf("File is Empty");
+    } else{
+        number_of_lines = atoi(buff);
+        // printf("number_of_lines: %d", number_of_lines);
+    }
+
+    // printf("number_of_lines_1:%d", number_of_lines);
+    for (line_count = 0; line_count <= number_of_lines; line_count++){
+        fgets(buff,50,sample_file_1_fp);
+        strcpy(sample_file_1[line_count], buff);
+    }
+    fclose(sample_file_1_fp);
+
+
+    printf("\n<<Sample File 1>>\n");
+    for (count = 0; count < line_count-1; count++){
+        strtok(sample_file_1[count],"\n");
+        printf("%s\n", sample_file_1[count]);
+    }
+
+    printf("\n<<PREPARING SKIP LIST FOR:>>\n");
+    initiate(&list);
+    for (count = 0; count < line_count-1; count++){
+        // strtok(sample_file_1[count],"\n");
+        // printf("%s\n", sample_file_1[count]);
+
+        char *ptr = sample_file_1[count];
+        int token_counter = 0;
+        while((tok = strtok(ptr,","))!='\0'){
+            token_counter++;
+            switch (token_counter){
+                case 1 :
+                key = atoi(tok);
+                break;
+
+                case 2 :
+                strcpy(value, tok);
+                break;
+
+
+                case 3 :
+                height = atoi(tok);
+                break;
+            }
+            ptr = NULL;
+        }
+        printf("KEY: %d  VALUE: %s  HEIGHT:%d\n",key,value, height);
+        inserth(&list, key, value, height);
+    }
+
+    print(&list);
+    display(&list);
+    skiplistFree(&list);
+
+}
+
+
+/** @brief part_2() Executes Part_2 of the assignment 5
+*
+*  This function helps to read Sample file2 and Sample file 3
+*  The first file will be defining the dictionary as follows:­
+*   The   first   line   of   this   input   file   will   be   a   number   ​N   ​
+*   indicating   how   many  entries are there in the file.
+*   Subsequent ​N ​lines will be in the form of “​key,value"
+*
+*   The second input file will be as follows:­
+*   The first line will be a number ​M ​indicating the number of search keys.
+*   Subsequent ​M ​lines will be in the form of “​search key"
+*   It passes value read from sample file 1 to insertp() to insert them into
+*   the skiplist with given probabilities  { 1/2 , 1/e , 1/4 , 1/8 , 1/16 }
+*
+*   Display a GNU PLOT
+*  @param void
+*  @return void
+*
+*/
+void part_2(){
+
+    FILE *sample_file_2_fp;
+    FILE *sample_file_3_fp;
+
+    char buff[50];
+    char *tok;
+    int number_of_lines_2 , number_of_lines_3;
+    int line_count = 0;
+    int count;
+    int key[50];
+    char value[50][50];
+    int search_key[50];
+    // float probability[] = {0.5 , 1/exp(1), 0.25 ,0.125 , 0.0625};
+    float probability[] = {0.0625, 0.125, 0.25, 1/exp(1), 0.5 };
+    int total_search_count[5];
+    int probability_count;
+
+
+    sample_file_2_fp = fopen("Sample input2", "r");
+    if(sample_file_2_fp == NULL)
+    printf("Error! File not found \n");
+    if(fgets(buff, 50 ,sample_file_2_fp) == NULL){
+        printf("File is Empty");
+    } else{
+        number_of_lines_2 = atoi(buff);
+    }
+    while(fgets(buff,50,sample_file_2_fp) != NULL){
+        strcpy(sample_file_2[line_count], buff);
+        line_count++;
+    }
+    fclose(sample_file_2_fp);
+
+    printf("\n<<Sample File 2>>\n");
+    for (count = 0; count < number_of_lines_2; count++){
+        strtok(sample_file_2[count],"\n");
+        printf("%s\n", sample_file_2[count]);
+        char *ptr = sample_file_2[count];
+        int token_counter = 0;
+        while((tok = strtok(ptr,","))!='\0'){
+            token_counter++;
+            switch (token_counter){
+                case 1 :
+                key[count] = atoi(tok);
+                break;
+
+                case 2 :
+                strcpy(value[count], tok);
+                break;
+            }
+            ptr = NULL;
+        }
+    }
+
+
+
+    sample_file_3_fp = fopen("Sample input3", "r");
+    if(sample_file_3_fp == NULL)
+    printf("Error! File not found \n");
+    if(fgets(buff, 50 ,sample_file_3_fp) == NULL){
+        printf("File is Empty");
+    } else{
+        number_of_lines_3 = atoi(buff);
+    }
+    line_count = 0;
+    while(fgets(buff,50,sample_file_3_fp) != NULL){
+        strcpy(sample_file_3[line_count], buff);
+        line_count++;
+    }
+    fclose(sample_file_3_fp);
+    printf("\n<<Sample File 3>>\n");
+    int search_key_count;
+    for (search_key_count = 0; search_key_count < number_of_lines_3 ; search_key_count++){
+        strtok(sample_file_3[search_key_count],"\n");
+        search_key[search_key_count] = atoi(sample_file_3[search_key_count]);
+        printf("%d\n", search_key[search_key_count]);
+    }
+
+    for (probability_count = 0; probability_count < 5;probability_count++){
+        printf("*************probability:%f*************\n", probability[probability_count]);
+        initiate(&list);
+        printf("\n<<PREPARING SKIP LIST FOR:>>\n");
+        for (count = 0; count < number_of_lines_2; count++){
+            printf("PROBABILITY: %f KEY: %d  VALUE: %s \n",probability[probability_count], key[count],value[count]);
+            insertp(&list, key[count], value[count], probability[probability_count]);
+        }
+        print(&list);
+
+
+        search_count = 0;
+        search_count_forward = 0;
+        search_count_down = 0;
+        // printf("number_of_lines_3:%d", number_of_lines_3);
+        for (search_key_count = 0; search_key_count < number_of_lines_3 ; search_key_count++){
+            strtok(sample_file_3[search_key_count],"\n");
+            search_key[search_key_count] = atoi(sample_file_3[search_key_count]);
+            printf("PROBABILITY: %f SEARCH KEY:%d\n", probability[probability_count],search_key[search_key_count]);
+
+            node *x = find(&list, search_key[search_key_count]);
+            if (x) {
+                printf("key = %d, value = %s\n", search_key[search_key_count], x->value);
+            } else {
+                printf("key = %d, not fuound\n", search_key[search_key_count]);
+            }
+        }
+
+        total_search_count[probability_count] = search_count;
+        printf("<<GNU PLOT>>\n");
+        printf("PROBABILITY: %f TOTAL SEARCH: %d\n\n", probability[probability_count],total_search_count[probability_count]);
+
+        skiplistFree(&list);
+    }
+
+    FILE * gnuplotPipe = popen ("gnuplot -persistent", "w");
+    fprintf(gnuplotPipe, "plot '-' \n");
+
+    for (count = 0; count < 5; count++){
+        fprintf(gnuplotPipe, "%f %d\n",  probability[count],total_search_count[count]);
+    }
+    fprintf(gnuplotPipe, "e");
+}
+
+
+
+
+/** @brief skiplist *initiate(skiplist *list)
+*
+*  This function initiates the skip list with header.
+*  the head has a maximum key value of INT_MAX. and the list level is set to 1 initially.
+*  It takes input parameter as a skiplist and returns a skiplist with header specified.
+*
+*  @param skiplist *list
+*  @return skiplist *
+*
+*/
+skiplist *initiate(skiplist *list){
+    int i;
+    node *header = (node *)malloc(sizeof(struct node));
+    list->header = header;
+    header->key = INT_MAX;
+    header->forward = (node **)malloc(sizeof(node*) * (SKIPLIST_MAX_LEVEL+1));
+    for (i = 0; i <= SKIPLIST_MAX_LEVEL; i++) {
+        header->forward[i] = list->header;
+    }
+
+    list->level = 1;
+    return list;
+}
+
+
+/** @brief int inserth(skiplist *list, int key, char *value, int height)
+*
+*  This function helps to insert   a   node   into   the   skip   list   with   the   key
+*  and   value   as   given   using   ​'h'   as   the   node   height.
+*   If   the   key   already   exists, then the value is updated with a new value.
+*
+*  @param skiplist *list
+*  @param int key
+*  @param char *value
+*   @param int height
+*
+*  @return int on success
+*
+*/
+int inserth(skiplist *list, int key, char *value, int height){
+
+    node *update[SKIPLIST_MAX_LEVEL+1];
+    node *x = list->header;
+    int i, level;
+    for (i = list->level; i >= 1; i--) {
+        while (x->forward[i]->key < key)
+        x = x->forward[i];
+        update[i] = x;
+    }
+    x = x->forward[1];
+
+    if (key == x->key) {
+
+        strcpy(x->value, value);
+        return 0;
+    } else {
+        level = height;
+        if (level > list->level) {
+            for (i = list->level+1; i <= level; i++) {
+                update[i] = list->header;
+            }
+            list->level = level;
+        }
+
+        x = (node *)malloc(sizeof(node));
+        x->key = key;
+        strcpy(x->value, value);
+        x->height = level;
+        x->forward = (node **)malloc(sizeof(node*) * (level + 1));
+
+        for (i = 1; i <= level; i++) {
+            x->forward[i] = update[i]->forward[i];
+            update[i]->forward[i] = x;
+        }
+    }
+    return 0;
+}
+
+
+/** @brief int rand_level(float probability)
+*
+*  This function helps to decide the level of a node depending upon the probability given
+*  and returns the hieght of the node.
+*
+*   @param float probability
+*  @return int level
+*
+*/
+int rand_level(float probability){
+    int level = 1;
+    // printf("rand():%d RAND_MAX:%d\t\t",rand(),RAND_MAX);
+    // printf("rand()/RAND_MAX:%f\t\t",(double)rand()/(double)RAND_MAX);
+    while (((double)rand()/(double)RAND_MAX) < probability && level < SKIPLIST_MAX_LEVEL){
+    level++;
+    // printf("level_loop:%d\t",level);
+    }
+    // printf("level:%d\n",level);
+    return level;
+}
+
+
+/** @brief int insertp(skiplist *list, int key, char *value, float probability)
+*
+*   Insert   a   node   into   the   skip   list   with   the   key   and   value
+*   as   given   using   ​p  as   the   probability   for   calculating   node   height.
+*   If   the   key   already   exists, then the value is updated with a new value.
+*
+*  @param skiplist *list
+*  @param int key
+*  @param char *value
+*   @param float probability
+*
+*  @return int on success
+*
+*/
+int insertp(skiplist *list, int key, char *value, float probability){
+    node *update[SKIPLIST_MAX_LEVEL+1];
+    node *x = list->header;
+    int i, level;
+    for (i = list->level; i >= 1; i--) {
+        while (x->forward[i]->key < key)
+        x = x->forward[i];
+        update[i] = x;
+    }
+    x = x->forward[1];
+
+    if (key == x->key) {
+        strcpy(x->value, value);
+        // x->value = value;
+        return 0;
+    } else {
+        // printf("Probability>>>>:%f\n",probability);
+        level = rand_level(probability);
+        if (level > list->level) {
+            for (i = list->level+1; i <= level; i++) {
+                update[i] = list->header;
+            }
+            list->level = level;
+        }
+
+        x = (node *)malloc(sizeof(node));
+        x->key = key;
+        strcpy(x->value, value);
+        x->height = level;
+        x->forward = (node **)malloc(sizeof(node*) * (level + 1));
+
+        for (i = 1; i <= level; i++) {
+            x->forward[i] = update[i]->forward[i];
+            update[i]->forward[i] = x;
+        }
+    }
+    return 0;
+}
+
+
+/** @brief node *find(skiplist *list, int key)
+*
+*  This function helps to find in the SkipList the value corresponding to the key provided.
+*  The function return a node for corresponding key value if the key is fouund else
+*  return a NULL value
+*
+*  @param skiplist *list
+*  @param int key
+*  @return node *
+*
+*/
+node *find(skiplist *list, int key){
+    printf("searching key:%d...\t\t", key);
+    node *x = list->header;
+    int i;
+
+    for (i = list->level; i >= 1; i--) {
+        search_count_forward++;
+        // search_count++;
+        while (x->forward[i]->key < key){
+        x = x->forward[i];
+        search_count_down++;
+        search_count++;
+        }
+    }
+    if (x->forward[1]->key == key) {
+        // search_count = search_count_forward + search_count_down;
+        printf("search_count:%d ",search_count);
+        return x->forward[1];
+    } else {
+        return NULL;
+    }
+    return NULL;
+}
+
+/** @brief static void freeNode(node *x)
+*
+*  This function helps to free the node corresponding to node *x
+*
+*  @param node *x
+*  @return void
+*
+*/
+static void freeNode(node *x){
+    if (x) {
+        free(x->forward);
+        free(x);
+    }
+}
+
+
+/** @brief iint delete(skiplist *list, int key){
+
+*
+*  This function helps to delete the node from the SkipList  with the given key
+*  and returns 0 if the key is found
+*
+*   @param skiplist *list
+*   @param int key
+*  @return int
+*
+*/
+int delete(skiplist *list, int key){
+    int i;
+    node *update[SKIPLIST_MAX_LEVEL + 1];
+    node *x = list->header;
+    for (i = list->level; i >= 1; i--) {
+        while (x->forward[i]->key < key)
+        x = x->forward[i];
+        update[i] = x;
+    }
+
+    x = x->forward[1];
+    if (x->key == key) {
+        for (i = 1; i <= list->level; i++) {
+            if (update[i]->forward[i] != x)
+            break;
+            update[i]->forward[i] = x->forward[i];
+        }
+        freeNode(x);
+
+        while (list->level > 1 && list->header->forward[list->level] == list->header)
+        list->level--;
+        return 0;
+    }
+    return 1;
+}
+
+
+
+/** @brief void print(skiplist *list)
+*
+*  This function helps to print the skip list on the stdout.
+*  and returns the hieght of the node.
+*
+*  @param skiplist *list
+*  @return int level
+*
+*/
+void print(skiplist *list){
+     printf("\n");
+node *x = list->header;
+while (x && x->forward[1] != list->header) {
+    printf("%d[%s]_%d->", x->forward[1]->key, x->forward[1]->value, x->forward[1]->height);
+    x = x->forward[1];
+}
+printf("NIL\n");
+}
+
+
+/** @brief  skiplistFree(skiplist *list)
+*
+*  This function helps to create Maach and Dal.
+*  To avoid race condition between the threads pthread_mutex_lock() function is used.
+*  We have a pthread_mutex_t called 'chef_mutex' will helps to avoid any race condition if possible.
+*  sem_wait(), sem_post() functions are used for semaphore. It will ensure that no deadlock condition
+*  between the producer and the consumer.
+*
+*
+*  @param void
+*  @return prints Maach on the log
+*  @return prints Dal on the log
+*/
+void skiplistFree(skiplist *list){
+    node *current_node = list->header;
+    while( current_node && current_node->forward[1] != list->header) {
+        node *next_node = current_node->forward[1];
+        // printf("Skiplist_free Key: %d\n", current_node->forward[1]->key);
+        free(current_node->forward);
+        free(current_node);
+        current_node = next_node;
+    }
+    // free(list->header);
+    // free(list);
+}
+
+
+
+
+/** @brief void display(skiplist *list)
+*
+*  This function helps to display the Skiplist in GraphViz.dot form
+* Output the skip list as a GraphViz DOT document which helps in visualising the data structure
+*
+*
+*  @param skiplist *list
+*  @return void
+*
+*/
+void display(skiplist *list){
+    int node_count = 1, height_count;
+    int *arr = (int *)malloc(sizeof(int));
+    node *x = list->header;
+    FILE *GraphViz_fp;
+
+    GraphViz_fp = fopen("GraphViz.dot", "w");
+    fprintf(GraphViz_fp,"digraph skiplist {\n\trankdir = LR;\n\tnode [shape=record, style = filled];\n\n");
+
+    while (x && x->forward[1] != list->header) {
+        // while(x->forward[0]->key != INT_MAX){
+        x = x->forward[1];
+
+        arr = (int *)realloc(arr, sizeof(int) * node_count);
+        arr[node_count-1] = x->key;
+
+        fprintf(GraphViz_fp,"\tnode%d[ label=\"", x->key);
+
+        for( height_count = x->height; height_count >= 1; height_count-- ){
+            fprintf(GraphViz_fp, "<l%d> level%d | ", height_count, height_count);
+        }
+        fprintf(GraphViz_fp,"%d ",x->key);
+        fprintf(GraphViz_fp,"\", fillcolor = \"deepskyblue\"];\n");
+
+        node_count++;
+    }
+
+    x = list->header;
+    fprintf(GraphViz_fp,"\n");
+    while (x && x->forward[1] != list->header) {
+        x = x->forward[1];
+
+        for( height_count = x->height; height_count >= 1; height_count-- ){
+            fprintf(GraphViz_fp,"\tnode%d:l%d -> ", x->key, height_count);
+            if(x->forward[height_count]->key == INT_MAX)
+            fprintf(GraphViz_fp,"null;\n");
+            else
+            // printf("node%d:l%d;\n",x->forward[height_count]->key, height_count);
+            fprintf(GraphViz_fp,"node%d:l%d;\n",x->forward[height_count]->key, height_count);
+        }
+    }
+
+    fprintf(GraphViz_fp,"\n}\n");
+    fclose(GraphViz_fp);
+}
+
+
+/** @brief void main()
+*
+*  This function helps to call part_1() function and part_2() function.
+*
+*  @param void
+*  @return void
+*
+*/
+void main(){
+
+    printf(">>>>>>>Part_1 Running...\n");
+    part_1();
+
+    printf("\n>>>>>>>Part_2 Running...\n");
+    part_2();
+
+}

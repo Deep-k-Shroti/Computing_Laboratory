@@ -1,0 +1,118 @@
+/**
+@file mymkdir.c
+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <string.h>
+
+char **cmd; 
+
+/** @brief To Tokenize a String 
+ *
+ *  Move a file/Directory from one location to another​
+ * 	Deletes the original directory after moving the contents. 
+ *
+ *  @param  string to tokenize and the delimiter   
+ *  @return tokenized string
+ *  @return Returns integer 0 on success
+ */
+
+
+int create_token(char *string1, const char *delimiter){
+ 
+  char *itr; 
+  int counter = 0; 
+  itr = strtok(string1, delimiter);
+  cmd = (char **)malloc((counter) * sizeof(char *));
+
+  while( itr != NULL){
+    cmd[counter] = itr;
+    itr = strtok(NULL, delimiter);
+    if(itr == NULL)
+      break;
+    
+  	counter++;
+    cmd[counter] = (char *)malloc( (strlen(itr)) * sizeof(char) );  
+  }
+  return counter+1;
+}
+
+
+/** @brief To Tokenize a String 
+ *
+ *  To make a specific directory, if the directory path does not exist.
+ *  it parses the path with the help of / the it create directory one by one
+ *  create the parent directory and 
+ *
+ *  @param  The target of directory to create 
+ *  @return The created directory 
+ */
+
+
+void create_dir(char *name){
+	//initialisation
+	int status; 		
+	char path[] = "." ; 
+	char dir_path[1024]; 
+	int dir_number; 		
+	int count1; 				
+	dir_number = create_token( name, "/");
+	sprintf(dir_path,"%s",path);
+	
+	for(count1 = 0; count1 < dir_number; count1++){
+		strcat(dir_path,"/");
+		strcat(dir_path, cmd[count1]);
+		status = mkdir(dir_path, 0777); 
+		if( status == 0)
+			printf("mkdir %s :Directory created successfully\n", dir_path);
+		else
+			printf("mkdir Unsuccessfull\n");
+	}
+}
+
+//the main function for mkdir
+int main( int argc, char *argv[]){
+	printf("[mymkdir_pid]=%ld\n", (long)getpid());
+	printf("/////%s", argv[0]);
+
+	int count; 
+	if(argc < 2)
+		printf("Error: No directory name provided\n");
+	else{
+		for (count = 1; count < argc; count++){
+			create_dir
+		( argv[count]);
+		}
+	}
+	return 0;
+}
+
+/*#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+int main(int argc, char *argv[]){
+	int status;
+	int count;
+	//printf("agrc %d", argc);
+	//int errnum = errno;
+	//char path[256];
+	//printf(">>");
+	//scanf("%s", path);
+	//printf("<<%s>>",argv[1]);
+
+	for(count = 1 ; count < argc; count++){
+		//if(strcmp(argv[count], '\0') != 0){
+		printf(">>>%s",argv[count]);
+	status = mkdir(argv[count], 0777);
+	if (status != 0){
+		//printf("Failed to create the directory\n");
+		//printf("Failed to create the directory ERROR:(%d : %s)",errnum, strerror(errno));
+	}else{
+		printf("Make directory successfull!\n");
+	}
+//}
+}
+	return 0;
+}*/

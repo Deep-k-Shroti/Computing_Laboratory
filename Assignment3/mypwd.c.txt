@@ -1,0 +1,29 @@
+/**
+@file mypwd.c
+*/
+#include <stdio.h>
+#include <unistd.h>
+
+
+/** @brief To display the current working directory
+ *
+ *  Makes a system call of cwd() to display the present working directory
+ *
+ *  @param  it is called from the shell file with no specific arguments
+ *  @return Prints the pwd
+ *  @return Returns interger 0 on success
+ */
+
+int main(){
+	printf("[mypwd_pid]=%ld\n", (long)getpid());
+	//printf("In PWD");
+	char cwd[256];
+   
+    getcwd(cwd, sizeof(cwd));
+    
+    if(cwd!=NULL)
+		puts(cwd);
+	else
+		puts("Error");    
+	return(0);
+}

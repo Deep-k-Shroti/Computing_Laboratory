@@ -1,0 +1,53 @@
+#include <stdio.h>                                              //To use input and output funtions
+#include <stdlib.h>                                             //To use exit() function
+#include <math.h>                                               //To evaluate the square root
+#include <time.h>                                               //To measure the time taken to execute the program
+
+
+int main (){
+
+    int process_count,pid,m,count;                              //Initialisation
+    long int input_integer,prime_factor_first,prime_factor_second;
+    float numberChildFactor;
+    clock_t begin,end;
+    double time_spent;
+    //int leave = 0;
+
+    printf("Enter an integer ");                                //To take an integer input
+    scanf("%ld",&input_integer);                                //To take an integer m, number of processes to fork
+    printf("Input an integer m, indicating number of processes to fork ");
+    scanf("%d",&m);
+
+    numberChildFactor = ceil(sqrt(input_integer)/m);
+    
+    begin = clock();                                            //Timer Starts
+    for(process_count = 0; process_count < m; process_count++) {     
+
+      pid = fork();                                              //To do prime fatorisation using multiple processes, forking is used
+        if(pid < 0) {                                            //Checking if child exist
+            printf("Error! Child process does not exist");
+            exit(1);
+        } else if (pid == 0) {
+            printf("Child (%d): %d\n", process_count + 1, getpid());
+            for(count = 1+ (process_count*numberChildFactor); count <= (process_count+1)*numberChildFactor; count++){
+                if(!(input_integer%count || count==1)){         //To check if remainder is zero
+                    prime_factor_first = count;                 //Prime factor 1
+                    prime_factor_second = input_integer/count;  //Prime factor 2
+                    printf("Prime factors = %ld,%ld \n", prime_factor_first,prime_factor_second);
+                    //leave = 1;
+                    //break;
+                }
+            }
+            exit(0);
+        } else {
+            wait(NULL);
+        }// if(leave)break;
+    }
+    end = clock();                                              //Timer Ends
+
+
+    time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("Time = %f microsecond \n",time_spent*1000000);
+    
+    return(0);
+}

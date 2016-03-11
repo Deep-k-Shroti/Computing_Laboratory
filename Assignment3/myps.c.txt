@@ -1,0 +1,390 @@
+/**
+@file myps.c
+*/
+#include <dirent.h>
+#include <sys/procfs.h>
+#include <dirent.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <linux/kdev_t.h>
+
+/** @brief To Check if it is a directory or not 
+ *
+ *  Uses a S_ISDIR Macro to check if the target file stat is a file or directory
+ *
+ *  @param  target file location
+ *  @return Return a 1 if it is a directory
+ * 
+ */
+
+int isDir(const char* target){
+  struct stat statbuf;
+  stat(target, &statbuf);
+  //printf("target: %s >>>> %d\n", target,S_ISDIR(statbuf.st_mode));
+  return S_ISDIR(statbuf.st_mode);
+}
+
+/** @brief To get the Dev Map to display the TTY attribute of a process
+ *
+ *
+ *  @param  major id of the tty 
+ *  @param  minor id of the tty 
+ *  @return Prints the corresponding tty attribute
+ */
+
+
+void getDevMap(int major, int minor)
+{
+  switch(major)
+  {
+    case 1:
+      printf("mem%d\t",minor);
+      break;
+    case 4:
+      printf("tty%d\t",minor);
+      break;
+    case 5:
+      printf("/dev/tty%d\t",minor);
+      break;
+    case 6:
+      printf("lp%d\t",minor);
+      break;
+    case 7:
+      printf("vcs%d\t",minor);
+      break;
+    case 10:
+      printf("misc%d\t",minor);
+      break;
+    case 13:
+      printf("input%d\t",minor);
+      break;
+    case 21:
+      printf("sg%d\t",minor);
+      break;
+    case 29:
+      printf("fb%d\t",minor);
+      break;
+    case 81:
+      printf("video4linux%d\t",minor);
+      break;
+    case 99:
+      printf("ppdev%d\t",minor);
+      break;
+    case 108:
+      printf("ppp%d\t",minor);
+      break;
+    case 116:
+      printf("alsa%d\t",minor);
+      break;
+    case 128:
+      printf("ptm%d\t",minor);
+      break;
+    case 136:
+      printf("pts/%d\t",minor);
+      break;
+    case 180:
+      printf("usb%d\t",minor);
+      break;
+    case 189:
+      printf("usb_device%d\t",minor);
+      break;
+    case 216:
+      printf("rfcomm%d\t",minor);
+      break;
+    case 226:
+      printf("drm%d\t",minor);
+      break;
+    case 251:
+      printf("hidraw%d\t",minor);
+      break;
+    case 252:
+      printf("bsg%d\t",minor);
+      break;
+    case 253:
+      printf("watchdog%d\t",minor);
+      break;
+    case 254:
+      printf("rtc%d\t",minor);
+      break;
+    default:
+      printf("?\t");
+  }
+  
+}
+
+/** @brief The main function
+ *
+ *  It transverse trough the proc directory and all 
+ *  the processes directory given by the process number
+ *  In stat library we get all the details about a process
+ *  The function has two modes from which it can print process 
+ *  corresponding to a user or all the process
+ *
+ *  @param  it gets a call from the main shell with the mode of processes to display
+ *  @return Prints the process
+ * 
+ */
+
+
+int main(int argc, char *argv[]){
+  printf("[myps_pid]=%ld\n", (long)getpid());
+  int i, mode = 0;
+  int fdproc;
+  DIR *proc_dir, *proc_pid_dir;
+  FILE *stat_file_ptr, *cmdline_file_ptr, *status_file_ptr;
+  //struct prpsinfo pinfo;
+  int max_line_size = 1000;
+  char buff[max_line_size];
+  char buff_cmd[max_line_size];
+  char buff_stat[max_line_size];
+  char *tok;
+  int count;
+  char pid[10];
+  char myppid[10];
+  char ppid[10];
+  char tty[10];
+  char stat[10];
+  char file_time1[50];
+  char file_time2[50];
+
+  char command[256];
+
+  //char proc_buf[256];
+  char file_name[256];
+  char proc_file_name[256];
+  int counter;
+  struct dirent *read_proc_dir, *read_proc_pid_dir;
+  
+
+  char arg_value[10][256];
+  char argument[10][256] ;
+  ssize_t cmd_len = 1;; 
+  size_t buff_len = 6;
+  char *cmd;
+  cmd = (char*)malloc(buff_len+1);
+
+  int major,minor; 
+  long unsigned int p_time; 
+
+  
+
+  /*if((cmd_len =  getline(&cmd, &buff_len, stdin)) == -1)
+    puts("ERROR");
+
+    char *ptr = cmd;
+    counter = 0;
+  while((tok = strtok(ptr," ")) != '\0'){
+    //printf("%s \n",tok);
+    strcpy(arg_value[counter], tok);
+    ptr = NULL;
+    counter++;
+  }
+
+  strtok(arg_value[counter-1],"\n");
+        
+  for(i=0;i<counter;i++){
+    sprintf(argument[i],"%s",arg_value[i]);
+    printf("<<agr[%d]>>>%s//\n",i, argument[i]);
+  }*/
+
+  if (strcmp(argv[1] ,"-a") == 0){
+    mode ='a';  
+    printf("<<mode>> %d\n", mode);
+  }
+
+  printf("  PID     TTY     STAT    TIME    COMMAND\n");
+
+
+  if ((proc_dir = opendir("/proc")) == (DIR *)NULL) {
+    perror("/proc");
+  }
+
+  while((read_proc_dir = readdir(proc_dir))!= NULL) {
+    sprintf(file_name,"%s",read_proc_dir->d_name);
+    //printf("file_name: %s\n", file_name);
+    if(strcmp (file_name, ".") !=0 && strcmp(file_name,"..") != 0 ){    
+      //printf("file_name: %s\n", file_name);
+      char proc_buf[256] = "";
+      strcpy(proc_buf,"/proc/");
+      strcat(proc_buf, read_proc_dir->d_name);
+      //printf("proc_buf:%s\n", proc_buf);
+
+      if(isDir(proc_buf) == 1){
+        if ((proc_pid_dir = opendir(proc_buf)) == (DIR *)NULL) {
+          perror("/proc");
+          exit(1);
+        }
+      
+
+        while((read_proc_pid_dir = readdir(proc_pid_dir))!= NULL) {
+          sprintf(proc_file_name,"%s",read_proc_pid_dir->d_name);
+          if(strcmp (proc_file_name, ".") !=0 && strcmp(proc_file_name,"..") != 0){
+
+            if(strcmp(proc_file_name,"stat") == 0 && strcmp(proc_buf,"/proc/self") != 0 && strcmp(proc_buf,"/proc/net") != 0){
+              //printf(">>>>>>>>>proc_file_name:%s\n", proc_file_name);
+              char proc_buf_temp1[256] = "";
+              
+              strcpy(proc_buf_temp1, proc_buf);
+              strcat(proc_buf_temp1, "/stat");
+
+              stat_file_ptr = fopen(proc_buf_temp1,"r");
+              //perror("fopen");  
+
+              if(stat_file_ptr != NULL){ 
+                while(fgets(buff_stat,max_line_size,stat_file_ptr) != NULL){
+                  //printf("To read stat: %s", buff_stat);
+
+                  char *ptr = buff_stat;
+                  count = 0;
+                  while((tok = strtok(ptr," ")) != '\0'){
+                    count++;
+                    //printf("%d: %s\n",count,tok);
+                    ptr = NULL; 
+                  
+                    switch (count){            
+                      case 1:
+                        strcpy(pid,tok);
+                        break;
+                      case 3:
+                        strcpy(stat, tok);           
+                        break;   
+                      case 4:
+                        strcpy(ppid, tok);           
+                        break;                
+                      case 7:
+                        strcpy(tty, tok);
+                        break;
+                      case 14:
+                        strcpy(file_time1, tok);
+                        break;
+                      case 15:
+                        strcpy(file_time2, tok);           
+                        break;  
+                        //default:
+                          //printf("Token not read");    
+                      }   
+                  }
+                }
+                fclose(stat_file_ptr);
+                //printf(" %5s ",pid );   
+                //printf(" %5s ",tty );
+                //printf(" %5s ",stat );
+                //printf(" %5s ",file_time ); 
+              }
+              else{
+                printf("stat file not opened\n");
+              }
+
+              char proc_buf_temp2[256] = "";
+              strcpy(proc_buf_temp2, proc_buf);
+              strcat(proc_buf_temp2, "/cmdline");
+
+
+              cmdline_file_ptr = fopen(proc_buf_temp2,"r"); 
+              if(cmdline_file_ptr != NULL){ 
+                if(fgets(buff_cmd,max_line_size,cmdline_file_ptr) != NULL);
+                else{
+                  char proc_buf_temp3[256] = "";
+                  strcpy(proc_buf_temp3, proc_buf);
+                  strcat(proc_buf_temp3, "/status");
+
+                  status_file_ptr = fopen(proc_buf_temp3,"r"); 
+                  if(status_file_ptr != NULL){ 
+                    fgets(buff_cmd,max_line_size,status_file_ptr);
+                    //printf(" name: %s\n", buff_cmd);
+
+                    char *ptr = buff_cmd;
+                    count = 0;
+                    while((tok = strtok(ptr,"\t")) != '\0'){
+                      count++;
+                      ptr = NULL;
+                      if(count ==2){
+                        strcpy(buff_cmd,tok);
+                          //printf(" %s\n", tok);
+                      } 
+                          //printf(">>>>%d>>>>%s",count, tok);
+                    }
+                    //printf(" %s\n ", tok);
+
+
+                    fclose(status_file_ptr);
+                  }
+                  else{
+                    printf("status file not opened\n");
+                  }
+                    //printf("CMD: %s",pid );
+                }
+              }
+              else{
+                printf("commandline file not opened\n");
+              }
+
+               /*printf(" %5s ",pid);   
+                  printf(" %5s ",tty);
+                  printf(" %5s ",stat);
+                  printf(" %5s ",file_time); 
+                  strtok(buff_cmd, "\n");
+                  printf("---ppid---%s",ppid);
+                  printf(" %s\n", buff_cmd);
+                  */
+
+              if(mode == 'a'){
+                printf(" %5s ",pid);   
+                //printf(" %5s ",tty);
+                
+
+                major = MAJOR(atoi(tty));
+                minor = MINOR(atoi(tty));
+                
+                printf(" %5s ",stat);
+                getDevMap(major, minor);
+
+                //printf(" %5s ",file_time); 
+
+                p_time = atoi(file_time1)+atoi(file_time2); 
+                p_time = p_time / sysconf (_SC_CLK_TCK);
+      
+     
+                printf("\t%3lu:%.2lu\t", (p_time / 60), (p_time % 60));
+                strtok(buff_cmd, "\n");
+                printf(" %s\n", buff_cmd);
+              }
+              else if(mode != 'a'){
+                //sprintf(myppid,"%d",2962);
+                //sprintf(myppid,"%ld",(long)getuid());
+                //printf("---ppid---%s",ppid);
+                //printf("---myppid---%s>>",myppid);
+                if(atoi(ppid) != 2){
+                //if(strcmp(ppid, )==0){
+                  printf(" %5s ",pid);   
+                  //printf(" %5s ",tty);
+
+                  major = MAJOR(atoi(tty));
+                  minor = MINOR(atoi(tty));
+                
+                  getDevMap(major, minor);
+
+                  printf(" %5s ",stat);
+                  //printf(" %5s ",file_time);
+
+                  p_time = atoi(file_time1)+atoi(file_time2); 
+
+                  p_time = p_time / sysconf (_SC_CLK_TCK);
+      
+     
+                   printf("\t%3lu:%.2lu\t", (p_time / 60), (p_time % 60));
+                  strtok(buff_cmd, "\n");
+                  printf(" %s\n", buff_cmd);
+                }
+              }
+            }      
+          }
+        } 
+      }
+    }
+  }  
+}            

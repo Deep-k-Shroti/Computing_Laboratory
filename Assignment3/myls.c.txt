@@ -1,0 +1,119 @@
+/**
+@file myls.c
+*/
+
+#include <stdio.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <time.h>
+#include <pwd.h>
+#include <grp.h>
+#include <stdlib.h>
+
+
+/** @brief To print the permissions associated with the files
+ *
+ *  It takes in the integer value to specify 
+ *  different permissions associated with the files 
+ *
+ *  @param  integer number    
+ *  @return prints the permission associated with file
+ *
+ */
+void permission(int num)
+{
+    switch( num )
+    {
+        case 0:
+            printf("--- ");
+            break;
+        case 1:
+            printf("--x ");
+            break;
+        case 2:
+            printf("-w- ");
+            break;
+        case 3:
+            printf("-wx ");
+            break;
+        case 4:
+            printf("r-- ");
+            break;
+        case 5:
+            printf("r-x ");
+            break;
+        case 6:
+            printf("rw- ");
+            break;
+        case 7:
+            printf("rwx ");
+            break;
+    }
+}
+
+
+/** @brief The main function to display  list of processes 
+ *
+ * Displays the list of files in the directory
+ * It has two inputs ls and ls -ax 
+ * Only ls -ax has been implemented 
+ *
+ *  @param  Main shell calls the myls function 
+ *  @return The list of file with permission hard-links opener group size timestamps name
+ * 
+ */
+
+void main(){
+    printf("[myls_pid]=%ld\n", (long)getpid());
+    char cwd[256];
+    DIR *dir;
+    struct dirent *read_cwd;
+    char *file_name;
+    struct stat file_stats;
+   
+    struct tm *timeInfo;
+    char timeString[20];
+
+    struct group *grp;
+    struct passwd *pwd;
+
+
+
+
+    getcwd(cwd, sizeof(cwd));
+    dir = opendir(cwd);
+    //printf("Protection Hardlinks Owner Group Size TimeStamp Name \n");
+    
+
+    while((read_cwd = readdir(dir)) != NULL){
+        
+        file_name = (read_cwd->d_name);
+
+        if((stat((char *)read_cwd->d_name, &file_stats)) == -1)
+            perror("fstat");
+
+       if(strcmp (file_name, ".") !=0 && strcmp(file_name,"..") != 0){            
+    
+            // Anding with the respective macros and shifting it to get the permission list
+            printf("-");
+            permission(((file_stats.st_mode) & S_IRWXU) >> 6);
+            permission(((file_stats.st_mode) & S_IRWXG) >> 3);
+            permission(((file_stats.st_mode) & S_IRWXO) >> 0);
+                
+
+            printf("%lu", file_stats.st_nlink);
+            printf("%7s", getpwuid(file_stats.st_uid)->pw_name);
+            printf("%7s", getgrgid(file_stats.st_gid)->gr_name);    
+            printf("%7ld", file_stats.st_size);
+            //printf(" %12ld",file_stats.st_mtime);
+
+            timeInfo = localtime( &(file_stats.st_mtime) );
+            strftime(timeString, 20, "%b  %d %H:%M", timeInfo);
+            printf("%15s",timeString);
+
+            printf(" %s\n", read_cwd -> d_name);
+        }       
+    }closedir (dir);
+    exit(0);
+}

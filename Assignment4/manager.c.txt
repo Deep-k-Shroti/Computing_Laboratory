@@ -1,0 +1,246 @@
+/**
+*  @file manager.c
+*  @brief The Chef Process
+*
+*
+*  @author Deep K. Shroti
+*  @bug No know bugs.
+*/
+
+
+#include <stdio.h>
+#include <error.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+#define CODE_END_KEY 7000
+
+FILE *guest_book_fp;
+FILE *occupancy_table1_fp, *occupancy_table2_fp, *occupancy_table3_fp;
+
+/** @brief  The GuestBookReader function
+*
+*  The GuestBookReader function helps to read from the guestlist
+*
+*  @param void
+*  @return void
+*
+*/
+void GuestBookReader()
+{
+  int line_count = 0;
+  char buff[20] = "";
+  // printf("Reading File\n");
+  guest_book_fp = fopen("Guestbook.txt","r");
+  if(guest_book_fp == NULL)                                    //Checking if the file exist
+    printf("Error! Guest list not found \n");
+
+    while(fgets(buff,50,guest_book_fp) != NULL){
+      printf("%s", buff);
+      line_count++;
+    }
+    fclose(guest_book_fp);
+}
+
+
+/** @brief  The main function
+*
+*  The main function accepts input from the user in terms of
+*  the sleep time and  to set the threads to sleep.
+*  Then it sleep the main function for a given seconds
+*
+*  @param char* argv[] the main function sleep time and the mode of thread sleep time
+*  @return void
+*
+*/
+void main(int argc, char *argv[]){
+
+  // initializations
+  int chef_thread1_Sleep, chef_thread2_Sleep, chef_thread3_Sleep;
+  int waiter_thread1_Sleep, waiter_thread2_Sleep, waiter_thread3_Sleep;
+  int child_generation_count, child_termination_count;
+   int code_end_shmid;
+   int *code_end;
+
+
+
+  pid_t mypid, parpid,child_pid;
+  int pid_status;
+
+  FILE *fp;
+  char shell_dir[256];
+  char exe_loc[256];
+
+  clock_t start;
+
+
+  code_end_shmid = shmget((key_t)CODE_END_KEY, 1*sizeof(int), 0777|IPC_CREAT);
+  code_end = (int*)shmat(code_end_shmid,0,0);
+  code_end[0] = 0;
+
+  if(code_end_shmid<0)
+    perror("shmget");
+    // printf("code_end_shmid %d\n",code_end_shmid);
+
+
+  // getting the current working directory
+getcwd(shell_dir,sizeof(shell_dir));
+  // opening the log file
+  fp = fopen("log.csv","w");
+  if( fp == NULL){
+    printf("Error! File not Created\n");
+  }else{
+    fprintf(fp,"Caller,id,resource,time,room");
+    fclose(fp);
+  }
+
+  /* Parent process gets its own ID and its parent's ID */
+  mypid = getpid();
+  parpid = getppid();
+  // printf("Parent: PID = %u, PPID = %u\n", mypid, parpid);
+
+    start = clock();
+    for (child_generation_count=1; child_generation_count<=3; child_generation_count++) {
+      sleep(1);/* Create the next child */
+      child_pid = fork();
+
+      /* The child process executes the following conditional block */
+      if (child_pid == 0) {
+        /* Child process gets its own ID and its parent's ID */
+        mypid = getpid();
+        parpid = getppid();
+        // printf("Child %d: PID = %u, PPID = %u\n",child_generation_count, mypid, parpid);
+
+        switch (child_generation_count){
+          case 1:
+            sprintf(exe_loc, "%s/chef.out", shell_dir);
+            if(execlp(exe_loc,exe_loc,argv[1],argv[2],argv[3],NULL)==-1)
+              perror("execlp");
+            exit(0);
+            break;
+          case 2:
+            sprintf(exe_loc, "%s/waiter.out", shell_dir);
+            if(execlp(exe_loc,exe_loc,argv[4],argv[5],argv[6],NULL)==-1)
+              perror("execlp");
+            exit(0);
+            break;
+            case 3:
+              sprintf(exe_loc, "%s/reception.out", shell_dir);
+              if(execlp(exe_loc,exe_loc,NULL)==-1)
+                perror("execlp");
+              exit(0);
+              break;
+        }
+        // exit(child_generation_count);
+      }
+      /* The parent continues to the next iteration */
+    }
+
+
+    int option;
+    int flag = 0;
+    while(1){
+      printf("\n\nPlease choose an Option\n");
+      printf("\t 1. Print Guest Book\n");
+      printf("\t 2. Print Service Room Occupancy Table\n");
+      printf("\t 3. Exit\n");
+      scanf("%d", &option);
+      switch (option){
+        case 1 :
+        // print guest book
+        printf("\n\n<<<Guest Book>>>\n");
+        // GuestBookReader();
+        int line_count = 0;
+        char buff[20] = "";
+        // printf("Reading File\n");
+        guest_book_fp = fopen("Guestbook.txt","r");
+        if(guest_book_fp == NULL)                                    //Checking if the file exist
+          printf("Error! Guest list not found \n");
+
+          while(fgets(buff,50,guest_book_fp) != NULL){
+            printf("%s", buff);
+            line_count++;
+          }
+          fclose(guest_book_fp);
+          break;
+
+        case 2 :
+        // print service room occupancy
+        printf("\n\n<<<Service Room Occupancy Table>>>\n");
+        {
+          int line_count = 0;
+          char buff[20] = "";
+          // printf("Reading File\n");
+
+          occupancy_table1_fp = fopen("Occupancy1.txt","r");
+          if(occupancy_table1_fp == NULL)                                    //Checking if the file exist
+            printf("Error! Guest list not found \n");
+
+            while(fgets(buff,50,occupancy_table1_fp) != NULL){
+              printf("%s", buff);
+              line_count++;
+            }
+            fclose(occupancy_table1_fp);
+
+            line_count = 0;
+            occupancy_table2_fp = fopen("Occupancy2.txt","r");
+            if(occupancy_table2_fp == NULL)                                    //Checking if the file exist
+              printf("Error! Guest list not found \n");
+
+              while(fgets(buff,50,occupancy_table2_fp) != NULL){
+                printf("%s", buff);
+                line_count++;
+              }
+              fclose(occupancy_table2_fp);
+
+              line_count = 0;
+              occupancy_table3_fp = fopen("Occupancy3.txt","r");
+              if(occupancy_table3_fp == NULL)                                    //Checking if the file exist
+                printf("Error! Guest list not found \n");
+
+                while(fgets(buff,50,occupancy_table3_fp) != NULL){
+                  printf("%s", buff);
+                  line_count++;
+                }
+                fclose(occupancy_table3_fp);
+        }
+
+        break;
+
+        case 3 :
+        printf("Exiting the Program...Please Wait!!\n");
+        code_end[0] = 1;  // set a flag to join all the processes
+        flag = 1;// shmdt(code_end);
+        break;
+
+        default:
+        printf("Option not found\n");
+      }
+      if(flag == 1){
+        break;
+      }
+    }
+
+//check if all treads ended...
+
+  /* Parent waits for all the children to terminate */
+  for (child_termination_count=1; child_termination_count<=3; child_termination_count++) {
+    /* Parent waits for any child to terminate */
+    /* Use waitpid() if the wait is on a specific child */
+    wait(&pid_status);
+
+    /* Parent uses the exit status to identify the child */
+    printf("Parent: Child %d terminates...\n", WEXITSTATUS(pid_status));
+  }
+  printf("\nParent terminates...\n");
+
+
+exit(0);
+
+}

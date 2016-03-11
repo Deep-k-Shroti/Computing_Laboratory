@@ -1,0 +1,99 @@
+#include <stdio.h>
+#include <dirent.h>
+//#include <sys/types.h>
+#include <sys/stat.h>
+//#include <unistd.h>
+#include <string.h>
+#include <time.h>
+#include <pwd.h>
+#include <grp.h>
+
+
+void permission(int num)
+{
+    //printf("inswitch: %d",num);
+    switch( num )
+    {
+        case 0:
+            printf("--- ");
+            break;
+        case 1:
+            printf("--x ");
+            break;
+        case 2:
+            printf("-w- ");
+            break;
+        case 3:
+            printf("-wx ");
+            break;
+        case 4:
+            printf("r-- ");
+            break;
+        case 5:
+            printf("r-x ");
+            break;
+        case 6:
+            printf("rw- ");
+            break;
+        case 7:
+            printf("rwx ");
+            break;
+    }
+}
+
+
+
+void main(){
+
+    char cwd[256];
+    DIR *dir;
+    struct dirent *read_cwd;
+    char *file_name;
+    struct stat file_stats;
+   
+    struct tm *timeInfo;
+    char timeString[20];
+
+    struct group *grp;
+    struct passwd *pwd;
+
+
+
+
+    getcwd(cwd, sizeof(cwd));
+    dir = opendir(cwd);
+    //printf("Protection Hardlinks Owner Group Size TimeStamp Name \n");
+    
+
+    while((read_cwd = readdir(dir)) != NULL){
+        
+        file_name = (read_cwd -> d_name);
+
+        //strcpy(file_name, read_cwd -> d_name);
+        if((stat(file_name, &file_stats)) == -1)
+            perror("fstat");
+
+       if(strcmp (file_name, ".") !=0 && strcmp(file_name,"..") != 0){            
+    
+           // printf("%o ", file_stats.st_mode);
+
+            printf("-");
+            permission(((file_stats.st_mode) & S_IRWXU) >> 6);
+            permission(((file_stats.st_mode) & S_IRWXG) >> 3);
+            permission(((file_stats.st_mode) & S_IRWXO) >> 0);
+                
+
+            printf(" %lu ", file_stats.st_nlink);
+            printf(" %s ", getpwuid(file_stats.st_uid)->pw_name);
+            printf(" %s ", getgrgid(file_stats.st_gid)->gr_name);    
+            printf(" %ld ", file_stats.st_size);
+            printf(" %ld ",file_stats.st_mtime);
+
+            timeInfo = localtime( &(file_stats.st_mtime) );
+            strftime(timeString, 20, "%b  %d %H:%M", timeInfo);
+            printf(" %s ",timeString);
+
+            printf(" %s \n", read_cwd -> d_name);
+        }       
+    }closedir (dir);
+}

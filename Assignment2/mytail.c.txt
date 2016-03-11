@@ -1,0 +1,67 @@
+#include <stdio.h>
+#include <string.h>
+#include <dirent.h>    
+#include <stdlib.h> 
+//#include <unistd.h>
+
+
+int main(int argc, char *argv[]){ 
+
+    //printf("%d",argc);
+    //printf(">>>1%s", argv[1]);
+    //printf(">>>2%s", argv[2]);
+   
+
+    int count;
+    char cwd[256] = "";
+    DIR *dir;
+    struct dirent *read_cwd;
+    char file_name[256] = "";
+    int number_line;
+    int line_count = 0;
+    char line[1024][1024];
+    FILE *ptr_file;
+      
+    int max_line_size = 1000;
+    char buff[max_line_size];
+    
+
+    
+    //strcpy(number_line , argument[1]);
+    number_line = atoi(argv[1]);
+    //strcpy(file_name , argument[2]);
+    sprintf(file_name,"%s",argv[2]); 
+    strtok(file_name, "\n");
+    printf("Reading File: %s",file_name);
+    printf("Reading File lines: %d \n",number_line);
+
+    
+    getcwd(cwd, sizeof(cwd));
+    dir = opendir(cwd);
+    while((read_cwd = readdir(dir)) != NULL){
+           
+       // printf("%s \n", read_cwd -> d_name);
+        if(strcmp (read_cwd->d_name, ".") !=0 && strcmp(read_cwd->d_name,"..") != 0 && strcmp(read_cwd -> d_name ,file_name) == 0){
+            printf("Reading File: %s \n",file_name);
+            ptr_file = fopen(file_name,"r");                         //Opening the file
+
+            while(fgets(buff,max_line_size,ptr_file) != NULL){         
+                line_count++;
+                strcpy(line[line_count], buff);
+               // printf("%ld",strlen(buff));
+               // printf("%s", buff);
+            }
+            for(count = line_count-(-1*number_line-1) ; count <= line_count; count++ ){
+                printf("%s", line[count]);
+            }
+            fclose(ptr_file);
+        }
+    }
+     if(ptr_file == NULL){                                         //Checking if the file exist
+                printf("Error! File not found \n");
+                return(-1); 
+}
+}
+
+                                                    
+   

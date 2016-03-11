@@ -1,0 +1,64 @@
+/**
+@file mytail.c
+*/
+#include <stdio.h>
+#include <string.h>
+#include <dirent.h>    
+#include <stdlib.h> 
+
+
+/** @brief ​ Print the last ‘n’ lines of the input file 
+ *
+ *  @param  number_line Number of lines from the end to print
+ *  @param  Filename of the input file
+ *  @return last ‘n’ lines of the input file
+ *  @return Returns integer 0 on success
+ */
+int main(int argc, char *argv[]){ 
+    printf("[mytail_pid]=%ld\n", (long)getpid());
+
+    int count;
+    char cwd[256] = "";
+    struct dirent *read_cwd;
+    char file_name[256] = "";
+    int number_line;
+    int line_count = 0;
+    char line[1024][1024];
+    int max_line_size = 1000;
+    char buff[max_line_size];
+
+    FILE *ptr_file;
+    DIR *dir;
+    
+    number_line = atoi(argv[1]);
+    
+    sprintf(file_name,"%s",argv[2]); 
+    strtok(file_name, "\n");
+    // printf("Reading File: %s",file_name);
+    // printf("Reading File lines: %d \n",number_line);
+
+    getcwd(cwd, sizeof(cwd));
+    dir = opendir(cwd);
+    while((read_cwd = readdir(dir)) != NULL){
+        if(strcmp (read_cwd->d_name, ".") !=0 && strcmp(read_cwd->d_name,"..") != 0 && strcmp(read_cwd -> d_name ,file_name) == 0){
+            // printf("Reading File: %s \n",file_name);
+            ptr_file = fopen(file_name,"r");                         //Opening the file
+
+            while(fgets(buff,max_line_size,ptr_file) != NULL){         
+                line_count++;
+                strcpy(line[line_count], buff);
+            }
+            for(count = line_count-(-1*number_line-1) ; count <= line_count; count++ ){
+                printf("%s", line[count]);
+            }
+            fclose(ptr_file);
+        }
+    }
+    if(ptr_file == NULL){                                         //Checking if the file exist
+        printf("Error! File not found \n");
+        return(-1); 
+    }
+}
+
+                                                    
+   

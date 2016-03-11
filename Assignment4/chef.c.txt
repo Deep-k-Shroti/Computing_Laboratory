@@ -1,0 +1,349 @@
+/**
+*  @file chef.c
+*  @brief The Chef Process
+*
+*
+*  @author Deep K. Shroti
+*  @bug No know bugs.
+*/
+
+
+#include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <error.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <time.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+
+#define CODE_END_KEY 7000
+#define DAL_COUNTER_KEY 7001
+#define BHAAT_COUNTER_KEY 7002
+#define MAACH_COUNTER_KEY 7003
+#define START_TIME_KEY 7008
+
+#define handle_error_en(en, msg) \
+do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
+
+static int serial_num  = 0;
+
+pthread_t chefThread1,chefThread2,chefThread3;
+pthread_mutex_t chef_mutex;
+sem_t *maachSem, *dalSem, *bhaatSem;
+
+FILE *fp;
+
+int chef_thread1_Sleep, chef_thread2_Sleep, chef_thread3_Sleep, mainSleepTime;
+// clock_t start;
+
+
+int code_end_shmid;
+int *code_end;
+
+int dal_counter_shmid, maach_counter_shmid, bhaat_counter_shmid;
+int *maach_counter, *dal_counter, *bhaat_counter;
+
+int start_time_shmid;
+clock_t *start_time;
+
+
+
+
+/** @brief Thread 1 Creates Maach and Dal
+*
+*  This function helps to create Maach and Dal.
+*  To avoid race condition between the threads pthread_mutex_lock() function is used.
+*  We have a pthread_mutex_t called 'chef_mutex' will helps to avoid any race condition if possible.
+*  sem_wait(), sem_post() functions are used for semaphore. It will ensure that no deadlock condition
+*  between the producer and the consumer.
+*
+*
+*  @param void
+*  @return prints Maach on the log
+*  @return prints Dal on the log
+*/
+void *chefThreadFunc1(void *param) {
+  printf("chefThreadFunc1:%d\n", getpid());
+
+  while(!code_end[0]) {
+    // printf("chefThreadFunc1");
+    /* acquire the mutex lock */
+    pthread_mutex_lock(&chef_mutex);
+
+    if(insertItem("Maach", 1)) {
+      fprintf(stderr, " Producer report error condition\n");
+    }
+    else {
+      // printf("producer produced Maach");
+      sem_post(maachSem);
+    }
+
+
+    if(insertItem("Dal", 1)) {
+      fprintf(stderr, " Producer report error condition\n");
+    }
+    else {
+      // printf("producer produced Dal");
+      sem_post(dalSem);
+    }
+
+    /* release the mutex lock */
+    pthread_mutex_unlock(&chef_mutex);
+    sleep(chef_thread1_Sleep);
+  }
+}
+
+/** @brief Thread 2 Creates Dal and Bhaat
+*
+*  This function helps to create Dal and Bhaat.
+*  To avoid race condition between the threads pthread_mutex_lock() function is used.
+*  We have a pthread_mutex_t called 'chef_mutex' will helps to avoid any race condition if possible.
+*  sem_wait(), sem_post() functions are used for semaphore. It will ensure that no deadlock condition
+*  between the producer and the consumer.
+*
+*
+*  @param void
+*  @return prints Dal on the log
+*  @return prints Bhaat on the log
+*/
+void *chefThreadFunc2(void *param) {
+  printf("chefThreadFunc2:%d\n", getpid());
+  while(!code_end[0]) {
+    // printf("chefThreadFunc2");
+
+    /* acquire the mutex lock */
+    pthread_mutex_lock(&chef_mutex);
+
+    if(insertItem("Dal", 2)) {
+      fprintf(stderr, " Producer report error condition\n");
+    }
+    else {
+      // printf("producer produced Dal");
+      sem_post(dalSem);
+    }
+
+
+    if(insertItem("Bhaat", 2)) {
+      fprintf(stderr, " Producer report error condition\n");
+    }
+    else {
+      // printf("producer produced Bhaat");
+    sem_post(bhaatSem);
+    }
+
+    /* release the mutex lock */
+    pthread_mutex_unlock(&chef_mutex);
+    sleep(chef_thread2_Sleep);
+  }
+}
+
+
+/** @brief Thread 3 Creates Maach and Bhaat
+*
+*  This function helps to create Maach and Bhaat.
+*  To avoid race condition between the threads pthread_mutex_lock() function is used.
+*  We have a pthread_mutex_t called 'chef_mutex' will helps to avoid any race condition if possible.
+*  sem_wait(), sem_post() functions are used for semaphore. It will ensure that no deadlock condition
+*  between the producer and the consumer.
+*
+*
+*  @param void
+*  @return prints Maach on the log
+*  @return prints Bhaat on the log
+*/
+void *chefThreadFunc3(void *param) {
+  printf("chefThreadFunc3:%d\n", getpid());
+  while(!code_end[0]) {
+    // printf("chefThreadFunc3");
+
+    /* acquire the mutex lock */
+    pthread_mutex_lock(&chef_mutex);
+
+    if(insertItem("Maach", 3)) {
+      fprintf(stderr, " Producer report error condition\n");
+    }
+    else {
+      // printf("producer produced Maach");
+    sem_post(maachSem);
+    }
+
+
+    if(insertItem("Bhaat", 3)) {
+      fprintf(stderr, " Producer report error condition\n");
+    }
+    else {
+      // printf("producer produced Bhaat");
+    sem_post(bhaatSem);
+    }
+    /* release the mutex lock */
+
+    pthread_mutex_unlock(&chef_mutex);
+    sleep(chef_thread3_Sleep);
+  }
+}
+
+
+
+
+/** @brief Insert Item write a given item and thread number on the log
+*
+*  This function helps to write on the log
+*  It takes input as the item, thread number.
+*  It calculates the time at which the process is being written.
+*
+*
+*  @param char *item the item to print on log
+*  @param int thread_num the tread which calls this function
+*  @return prints Thread, Item, and Time on the log
+*
+*/
+int insertItem(char *item, int thread_num) {
+  // double elapsedTime;
+
+  clock_t end;
+  double elapsed;
+
+  serial_num++;
+if (strcmp(item,"Maach")==0){
+    maach_counter[0]++;
+    // printf("maach_counter:%d",maach_counter);
+  }
+ if(strcmp(item,"Dal")==0){
+    dal_counter[0]++;
+    // printf("dal_counter:%d",dal_counter);
+  }
+ if(strcmp(item,"Bhaat")==0){
+    bhaat_counter[0]++;
+    // printf("bhaat_counter:%d",bhaat_counter);
+  }
+
+
+  fp = fopen("log.csv","a");
+  if( fp == NULL){
+    printf("Error! File not Created\n");
+    return -1;
+  }else{
+
+    end = clock();
+    // printf("%s",item);
+    elapsed = ((double) (end - start_time[0])) / CLOCKS_PER_SEC;
+    fprintf(fp, "Chef,%d,%s,%f msec", thread_num, item, elapsed*1000);
+    fprintf(fp, ",\t\tMaach:%3d\t Dal:%3d\t Bhaat:%3d Code_end:%3d\n",maach_counter[0], dal_counter[0], bhaat_counter[0], code_end[0]);
+
+    fclose(fp);
+    return 0;
+  }
+}
+
+
+
+/** @brief  The main function
+*
+*  The main function accepts input from the user in terms of
+*  the main funtion sleep time and the mode in which we want
+*  the code to run i.e. to set the threads sleep
+*  It creates three threads for different cases i.e. Maach-Dal, Dal-Bhaat, Bhaat-Maach
+*  Then it sleep the main function for a given seconds
+*  Finally it joins all the threads and it exits the program.
+*
+*  @param char* argv[] the main function sleep time and the mode of thread sleep time
+*  @return void
+*
+*/
+void main(int argc, char *argv[]){
+  pid_t mypid, parpid;
+
+  // initializations
+  int thread_status;
+  pthread_mutex_init(&chef_mutex, NULL);
+
+  chef_thread1_Sleep = atoi(argv[1]);
+  chef_thread2_Sleep = atoi(argv[2]);
+  chef_thread3_Sleep = atoi(argv[3]);
+
+
+  // printf("chef:thread1 sleep %d\n", chef_thread1_Sleep);
+  // sem_init(&maachSem, 0, 0);
+  // sem_init(&dalSem, 0, 0);
+  // sem_init(&bhaatSem, 0, 0);
+
+  maachSem = sem_open("/maachSem", O_CREAT, 0644, 0);
+  dalSem = sem_open("/dalSem", O_CREAT, 0644, 0);
+  bhaatSem = sem_open("/bhaatSem", O_CREAT, 0644, 0);
+
+  code_end_shmid = shmget((key_t)CODE_END_KEY, sizeof(int),0777|IPC_CREAT);
+  code_end = (int*)shmat(code_end_shmid, 0,0);
+  code_end[0] = 0;
+
+  dal_counter_shmid = shmget((key_t)DAL_COUNTER_KEY, sizeof(int),0777|IPC_CREAT);
+  dal_counter = (int*)shmat(dal_counter_shmid, 0,0);
+  dal_counter[0] = 0;
+
+  bhaat_counter_shmid = shmget((key_t)BHAAT_COUNTER_KEY, sizeof(int),0777|IPC_CREAT);
+  bhaat_counter = (int*)shmat(bhaat_counter_shmid, 0,0);
+  bhaat_counter[0] = 0;
+
+  maach_counter_shmid = shmget((key_t)MAACH_COUNTER_KEY, sizeof(int),0777|IPC_CREAT);
+  maach_counter = (int*)shmat(maach_counter_shmid, 0,0);
+  maach_counter[0] = 0;
+
+  start_time_shmid = shmget((key_t)START_TIME_KEY,sizeof(clock_t),0777|IPC_CREAT);
+  start_time = (clock_t *)shmat(start_time_shmid, 0,0);
+  start_time[0] = clock();
+
+  mypid = getpid();
+  parpid = getppid();
+  printf("Child Chef: PID = %u, PPID = %u\n", mypid, parpid);
+
+  //  creating 3 threads
+  thread_status = pthread_create(&chefThread1, NULL, chefThreadFunc1, NULL);
+  if (thread_status != 0)
+  handle_error_en(thread_status, "pthread_create");
+  thread_status = pthread_create(&chefThread2, NULL, chefThreadFunc2, NULL);
+  if (thread_status != 0)
+  handle_error_en(thread_status, "pthread_create");
+  thread_status = pthread_create(&chefThread3, NULL, chefThreadFunc3, NULL);
+  if (thread_status != 0)
+  handle_error_en(thread_status, "pthread_create");
+
+  int mainSleepTime = 20;
+  sleep(mainSleepTime);
+  printf("Sleep Ended\n");
+  code_end[0] = 1;// sleep timer for main function
+
+  // Joining the threads to avoid Zombie threads..
+
+  thread_status = pthread_join(chefThread1, NULL);
+  if (thread_status != 0)
+  handle_error_en(thread_status, "pthread_join");
+  printf("chefThread1:joined\n");
+
+  thread_status = pthread_join(chefThread2, NULL);
+  if (thread_status != 0)
+  handle_error_en(thread_status, "pthread_join");
+  printf("chefThread2:joined\n");
+
+  thread_status = pthread_join(chefThread3, NULL);
+  if (thread_status != 0)
+  handle_error_en(thread_status, "pthread_join");
+  printf("chefThread3:joined\n");
+
+  sem_unlink("/maachSem");
+  sem_unlink("/dalSem");
+  sem_unlink("/bhaatSem");
+
+  shmdt(code_end);
+  shmdt(dal_counter);
+  shmdt(maach_counter);
+  shmdt(bhaat_counter);
+  shmdt(start_time);
+
+  printf("\nChef: Work done...\n");
+  exit(0);
+}

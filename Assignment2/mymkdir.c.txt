@@ -1,0 +1,28 @@
+#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+int main(int argc, char *argv[]){
+	int status;
+	int count;
+	//printf("agrc %d", argc);
+	//int errnum = errno;
+	//char path[256];
+	//printf(">>");
+	//scanf("%s", path);
+	//printf("<<%s>>",argv[1]);
+
+	for(count = 1 ; count < argc; count++){
+		//if(strcmp(argv[count], '\0') != 0){
+		//(">>>%s",argv[count]);
+	status = mkdir(argv[count], 0777);
+	if (status != 0){
+		//printf("Failed to create the directory\n");
+		//printf("Failed to create the directory ERROR:(%d : %s)",errnum, strerror(errno));
+	}else{
+		printf("Make directory successfull!\n");
+	}
+//}
+}
+	return 0;
+}
