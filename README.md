@@ -4,16 +4,16 @@
 This repository contains all Computing Lab Assignments. The Experiment are written in C and R.
 
 ##Directories included <br />
-/Assignment1 <br />
-/Assignment2 <br />
-/Assignment3 <br />
-/Assignment4 <br />
-/Assignment5 <br />
-/Assignment6 <br />
-/Assignment7 <br />
-/Assignment8 <br />
-/Assignment9 <br />
-/Assignment10 <br />
+/Assignment1  - Forking  <br />
+/Assignment2  - Custom Linux Shell<br />
+/Assignment3  - Process Management<br />
+/Assignment4  - Smokers Problem<br />
+/Assignment5  - SkipList<br />
+/Assignment6  - SkipList Continued<br />
+/Assignment7  - Text Processing and Search with R<br />
+/Assignment8  - Ranking Documents with Eigenvector Centrality<br />
+/Assignment9  - Introduction to Hadoop<br />
+/Assignment10 - K-Means in R<br />
 Each directory includes the experiment problem statement(.pdf), Makefile, Doxyfile and source code(.c).
 
 ##The list of experiments:
